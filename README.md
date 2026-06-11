@@ -9,10 +9,10 @@ reference, hazard registry, survival guide, and manuals for both IDEs.
 
 ## Web IDE (no terminal required)
 
-Open [`web/index.html`](web/index.html) in a browser: a hell-themed editor
-with one-click compile (real Python via Pyodide/WebAssembly), save/load of
-`.bs` files, localStorage autosave, and an opt-in **Damnation Mode** that
-ports the gauges and hazards to the browser. See the
+Open [`web/index.html`](web/index.html) in a browser: a clean VS Code-style
+editor with one-click compile (real Python via Pyodide/WebAssembly), save/load
+of `.bs` files, localStorage autosave, and a built-in bidirectional
+converter (Python ↔ Brimstone). Hazards are terminal-only. See the
 [Web IDE manual](wiki/Web-IDE.md).
 
 ## Terminal IDE
