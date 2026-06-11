@@ -9,10 +9,12 @@ reference, hazard registry, survival guide, and manuals for both IDEs.
 
 ## Web IDE (no terminal required)
 
-Open [`web/index.html`](web/index.html) in a browser: a clean VS Code-style
-editor with one-click compile (real Python via Pyodide/WebAssembly), save/load
-of `.bs` files, localStorage autosave, and a built-in bidirectional
-converter (Python ↔ Brimstone). Hazards are terminal-only. See the
+Open [`web/index.html`](web/index.html) in a browser: the full Brimstone
+experience — gauges, load-bearing pillars, and all five hazards always
+live — in a plain two-color, VS Code-like editor with autocomplete
+suggestions. Execution is real Python via Pyodide/WebAssembly. Save/Load
+buttons handle `.bs` and `.py` files; `func pythonize` / `func brimstonify`
+convert the buffer between Python and Brimstone in place. See the
 [Web IDE manual](wiki/Web-IDE.md).
 
 ## Terminal IDE
