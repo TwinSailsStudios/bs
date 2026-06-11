@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRIMSTONE — Web Inferno</title>
+<style>
+  /* ======================================================================
+     HELL THEME — molten reds on charred black, flickering embers
+     ====================================================================== */
+  :root {
+    --char:   #0d0302;
+    --coal:   #1a0705;
+    --ash:    #2a100a;
+    --ember:  #ff4d00;
+    --flame:  #ff8c00;
+    --blood:  #c41e0e;
+    --bone:   #e8d5b7;
+    --soot:   #7a5c4f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 120%, #4a0d00 0%, transparent 60%),
+      radial-gradient(ellipse at 50% -20%, #200500 0%, transparent 70%),
+      var(--char);
+    color: var(--bone);
+    font-family: "Courier New", Courier, monospace;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* --- animated flame strip across the top of the page --- */
+  .flamebar {
+    height: 6px; flex: none;
+    background: linear-gradient(90deg,
+      var(--blood), var(--ember), var(--flame), var(--ember), var(--blood));
+    background-size: 200% 100%;
+    animation: lick 3s linear infinite;
+    box-shadow: 0 0 18px 2px var(--ember);
+  }
+  @keyframes lick { to { background-position: 200% 0; } }
+
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 16px;
+    padding: 10px 18px 6px;
+    border-bottom: 1px solid var(--ash);
+  }
+  h1 {
+    font-size: 26px; letter-spacing: 4px; color: var(--ember);
+    text-shadow: 0 0 8px var(--blood), 0 0 22px var(--ember);
+    animation: flicker 4s infinite;
+  }
+  @keyframes flicker {
+    0%,100% { opacity: 1; } 92% { opacity: 1; }
+    93% { opacity: .6; } 94% { opacity: 1; } 97% { opacity: .75; }
+  }
+  header .sub { color: var(--soot); font-size: 12px; }
+
+  /* --- gauges (visible only in Damnation Mode) --- */
+  #gauges {
+    flex: none; display: none; gap: 24px; align-items: center;
+    padding: 6px 18px; border-bottom: 1px solid var(--ash);
+    font-size: 12px;
+  }
+  body.damned #gauges { display: flex; }
+  .gauge { display: flex; align-items: center; gap: 8px; }
+  .bar {
+    width: 120px; height: 10px; background: var(--coal);
+    border: 1px solid var(--ash); position: relative;
+  }
+  .bar > i {
+    display: block; height: 100%; width: 50%;
+    background: linear-gradient(90deg, var(--blood), var(--ember));
+    transition: width .3s;
+  }
+  #riskbar > i { background: linear-gradient(90deg, #3a004d, #a000c8); }
+  .frozen-tag { color: #7fd4ff; display: none; font-weight: bold; }
+  body.frozen .frozen-tag { display: inline; }
+  body.frozen #editor { color: #7fd4ff; caret-color: #7fd4ff; }
+
+  /* --- toolbar --- */
+  #toolbar {
+    flex: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 8px 18px; border-bottom: 1px solid var(--ash);
+  }
+  button, label.btn {
+    background: var(--coal); color: var(--bone);
+    border: 1px solid var(--blood); padding: 6px 14px;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+    text-shadow: 0 0 4px rgba(255,77,0,.4);
+    transition: all .15s;
+  }
+  button:hover, label.btn:hover {
+    background: var(--blood); color: #fff;
+    box-shadow: 0 0 12px var(--ember);
+  }
+  button.rite { border-color: var(--ember); color: var(--flame); }
+  #filename {
+    background: var(--coal); border: 1px solid var(--ash);
+    color: var(--bone); padding: 6px 10px; font-family: inherit;
+    width: 160px;
+  }
+  .spacer { flex: 1; }
+  .toggle { display: flex; gap: 6px; align-items: center; color: var(--soot);
+            font-size: 12px; cursor: pointer; user-select: none; }
+
+  /* --- main split: editor | output --- */
+  #main { flex: 1; display: flex; min-height: 0; }
+  #editorwrap {
+    flex: 1.2; display: flex; min-width: 0; position: relative;
+    border-right: 1px solid var(--ash);
+  }
+  #gutter {
+    flex: none; width: 44px; padding: 12px 6px; text-align: right;
+    color: var(--soot); background: var(--coal); overflow: hidden;
+    font-size: 14px; line-height: 1.5; white-space: pre;
+  }
+  #editor {
+    flex: 1; background: transparent; color: var(--bone);
+    border: none; outline: none; resize: none;
+    padding: 12px; font-family: inherit; font-size: 14px; line-height: 1.5;
+    caret-color: var(--ember); white-space: pre; overflow: auto;
+  }
+  #editor::selection { background: var(--blood); }
+
+  /* solar-flare scramble: hide real text, show the lying overlay */
+  body.scrambled #editor { color: transparent; caret-color: transparent; }
+  #scramble {
+    display: none; position: absolute; inset: 0; left: 44px;
+    padding: 12px; font-size: 14px; line-height: 1.5; white-space: pre;
+    color: var(--flame); pointer-events: none; overflow: hidden;
+  }
+  body.scrambled #scramble { display: block; }
+
+  /* fire creeping up the editor borders when temperature > 75 */
+  body.blazing #editorwrap {
+    box-shadow: inset 0 0 30px 6px rgba(255,77,0,.35);
+    animation: blaze .4s infinite alternate;
+  }
+  @keyframes blaze {
+    from { box-shadow: inset 0 0 24px 4px rgba(255,77,0,.30); }
+    to   { box-shadow: inset 0 0 42px 10px rgba(255,140,0,.50); }
+  }
+
+  #right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .paneltitle {
+    flex: none; padding: 6px 12px; font-size: 11px; letter-spacing: 2px;
+    color: var(--soot); border-bottom: 1px solid var(--ash);
+  }
+  #pyout, #runout {
+    flex: 1; overflow: auto; padding: 10px 12px; font-size: 13px;
+    white-space: pre-wrap; min-height: 0;
+  }
+  #pyout { color: var(--soot); border-bottom: 1px solid var(--ash); }
+  #runout .err { color: var(--blood); font-weight: bold; }
+  #runout .ok { color: #7fbf5f; }
+  #runout .sys { color: var(--soot); font-style: italic; }
+
+  #statusline {
+    flex: none; padding: 6px 18px; font-size: 12px; color: var(--flame);
+    border-top: 1px solid var(--ash); background: var(--coal);
+    min-height: 28px;
+  }
+
+  /* --- full-screen doom overlay (death, flare QTE, spoilage) --- */
+  #overlay {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    background: rgba(5,0,0,.96);
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 18px; padding: 24px;
+  }
+  #overlay.show { display: flex; }
+  #overlay pre {
+    color: var(--ember); font-size: 14px;
+    text-shadow: 0 0 10px var(--blood);
+  }
+  #overlay .big { font-size: 22px; color: var(--blood); letter-spacing: 3px; }
+  #overlay input {
+    background: var(--coal); border: 1px solid var(--ember);
+    color: var(--bone); padding: 8px 12px; font-family: inherit;
+    font-size: 16px; width: 320px; text-align: center;
+  }
+  #overlay .timer { color: var(--flame); font-size: 28px; }
+</style>
+</head>
+<body>
+<div class="flamebar"></div>
+
+<header>
+  <h1>&#9760; BRIMSTONE</h1>
+  <span class="sub">web inferno v6.66 — the compiler is angry and it has wifi</span>
+</header>
+
+<div id="gauges">
+  <span class="gauge">TEMP <span class="bar"><i id="tempfill"></i></span>
+    <span id="templabel">50%</span></span>
+  <span class="gauge">RISK <span class="bar" id="riskbar"><i id="riskfill"></i></span>
+    <span id="risklabel">0%</span></span>
+  <span class="frozen-tag">[FROZEN — shovel coal]</span>
+  <span class="spacer"></span>
+  <button onclick="rite('holywater')">&#128167; Holy Water (−40°)</button>
+  <button onclick="rite('coal')">&#9899; Coal (+40°)</button>
+  <button onclick="rite('exorcise')">&#10013; Exorcise</button>
+</div>
+
+<div id="toolbar">
+  <button class="rite" onclick="compileAndRun()">&#128293; func compile</button>
+  <input id="filename" value="inferno.bs" spellcheck="false">
+  <button onclick="saveFile()">&#11015; Save .bs</button>
+  <label class="btn">&#11014; Load .bs
+    <input type="file" id="loader" accept=".bs,.spoiled,.txt" hidden>
+  </label>
+  <button onclick="newFile()">&#128465; New</button>
+  <span class="spacer"></span>
+  <label class="toggle">
+    <input type="checkbox" id="damnation"> DAMNATION MODE (gauges &amp; hazards)
+  </label>
+</div>
+
+<div id="main">
+  <div id="editorwrap">
+    <div id="gutter">1</div>
+    <textarea id="editor" spellcheck="false"
+      placeholder="summon math&#10;rite hello():&#10;    manifest('the abyss compiles you back')&#10;hello()"></textarea>
+    <div id="scramble"></div>
+  </div>
+  <div id="right">
+    <div class="paneltitle">TRANSLATED PYTHON</div>
+    <div id="pyout">(compile to reveal the profane truth)</div>
+    <div class="paneltitle">HELLMOUTH OUTPUT</div>
+    <div id="runout"><span class="sys">The hellmouth is silent. For now.</span></div>
+  </div>
+</div>
+
+<div id="statusline">Welcome, sinner. Write code. Save often. Trust nothing.</div>
+
+<div id="overlay">
+  <div class="big" id="ov-title"></div>
+  <pre id="ov-art"></pre>
+  <div id="ov-msg"></div>
+  <div class="timer" id="ov-timer"></div>
+  <input id="ov-input" hidden autocomplete="off" spellcheck="false">
+  <button id="ov-btn" hidden onclick="hideOverlay()">accept your fate</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+"use strict";
+/* =========================================================================
+   BRIMSTONE WEB IDE
+   - Translation: Brimstone -> Python, mirrored exactly from brimstone.py.
+   - Execution: real Python via Pyodide (WebAssembly), loaded lazily.
+   - Persistence: localStorage autosave + .bs file download/upload.
+   - DAMNATION MODE: opt-in port of the terminal hazards. With it off,
+     this is a perfectly safe, merely ominous-looking IDE.
+   ========================================================================= */
+
+const KEYWORD_MAP = {
+  manifest: "print", demand: "input", summon: "import", rite: "def",
+  PURE: "True", CORRUPT: "False", sin: "try", atone: "except",
+};
+
+function translate(source) {
+  return source.split("\n").map(line => {
+    // `suffer X in Y:` is a for-loop; any other `suffer` is a while-loop.
+    if (/\bsuffer\b.*\bin\b/.test(line)) {
+      line = line.replace(/\bsuffer\b/g, "for");
+    } else {
+      line = line.replace(/\bsuffer\b/g, "while");
+    }
+    for (const [bs, py] of Object.entries(KEYWORD_MAP)) {
+      line = line.replace(new RegExp("\\b" + bs + "\\b", "g"), py);
+    }
+    return line;
+  }).join("\n");
+}
+
+/* ----- DOM handles ----- */
+const editor = document.getElementById("editor");
+const gutter = document.getElementById("gutter");
+const pyout = document.getElementById("pyout");
+const runout = document.getElementById("runout");
+const statusline = document.getElementById("statusline");
+const scrambleEl = document.getElementById("scramble");
+const damnation = document.getElementById("damnation");
+
+function setStatus(msg) { statusline.textContent = msg; }
+function log(msg, cls) {
+  const span = document.createElement("span");
+  if (cls) span.className = cls;
+  span.textContent = msg + "\n";
+  runout.appendChild(span);
+  runout.scrollTop = runout.scrollHeight;
+}
+
+/* ----- gutter line numbers ----- */
+function refreshGutter() {
+  const n = editor.value.split("\n").length;
+  gutter.textContent = Array.from({length: n}, (_, i) => i + 1).join("\n");
+  gutter.scrollTop = editor.scrollTop;
+}
+editor.addEventListener("scroll", () => {
+  gutter.scrollTop = editor.scrollTop;
+  scrambleEl.scrollTop = editor.scrollTop;
+});
+
+/* ----- localStorage autosave (the only mercy this IDE shows) ----- */
+const LS_KEY = "brimstone.buffer", LS_NAME = "brimstone.filename";
+function autosave() {
+  localStorage.setItem(LS_KEY, editor.value);
+  localStorage.setItem(LS_NAME, document.getElementById("filename").value);
+}
+(function restore() {
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved !== null) editor.value = saved;
+  const name = localStorage.getItem(LS_NAME);
+  if (name) document.getElementById("filename").value = name;
+  refreshGutter();
+})();
+
+/* ----- save / load / new ----- */
+function saveFile(forcedName) {
+  let name = forcedName || document.getElementById("filename").value.trim()
+             || "inferno.bs";
+  if (!forcedName && !name.endsWith(".bs")) name += ".bs";
+  const blob = new Blob([editor.value], {type: "text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("Soul committed to disk as " + name + ".");
+}
+
+document.getElementById("loader").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  editor.value = await f.text();
+  document.getElementById("filename").value = f.name;
+  refreshGutter(); autosave();
+  setStatus("Summoned " + f.name + " from the mortal filesystem.");
+  e.target.value = "";
+});
+
+function newFile() {
+  if (editor.value.trim() &&
+      !confirm("Cast the current buffer into the void?")) return;
+  editor.value = "";
+  document.getElementById("filename").value = "inferno.bs";
+  refreshGutter(); autosave();
+  setStatus("A blank page. The most frightening thing in hell.");
+}
+
+/* ----- Pyodide: lazy-loaded Python runtime ----- */
+let pyodidePromise = null;
+function getPyodide() {
+  if (!pyodidePromise) {
+    setStatus("Summoning the Python interpreter from the CDN abyss...");
+    pyodidePromise = loadPyodide().catch(err => {
+      pyodidePromise = null;
+      throw new Error("The summoning failed (offline? CDN blocked?): " + err);
+    });
+  }
+  return pyodidePromise;
+}
+
+async function compileAndRun() {
+  if (chaos.dead) return;
+  const source = editor.value;
+  const python = translate(source);
+  pyout.textContent = python || "(empty file — the void compiles cleanly)";
+  runout.textContent = "";
+  log("--- EXECUTING " + new Date().toLocaleTimeString() + " ---", "sys");
+  let py;
+  try {
+    py = await getPyodide();
+  } catch (err) { log(String(err), "err"); setStatus("Summoning failed."); return; }
+  py.setStdout({batched: s => log(s)});
+  py.setStderr({batched: s => log(s, "err")});
+  py.setStdin({stdin: () => prompt("demand() awaits your answer:") ?? ""});
+  try {
+    await py.runPythonAsync(python);
+    log("[COMPILE OK] It ran. Somehow.", "ok");
+    setStatus("Execution survived. The gauges remember everything.");
+  } catch (err) {
+    log("[DAMNATION] " + err.message, "err");
+    setStatus("The runtime bit back.");
+  }
+}
+
+/* =========================================================================
+   DAMNATION MODE — the hazard engine, ported from the terminal IDE.
+   ========================================================================= */
+const chaos = {
+  temp: 50, risk: 0, dairy: 0,
+  ghostDebts: [],          // [{find, original}] for exorcism
+  ghostTimer: null,
+  scrambleTimer: null, scrambleUntil: 0,
+  dead: false,
+};
+
+function gaugeRefresh() {
+  document.getElementById("tempfill").style.width = chaos.temp + "%";
+  document.getElementById("templabel").textContent = Math.round(chaos.temp) + "%";
+  document.getElementById("riskfill").style.width = chaos.risk + "%";
+  document.getElementById("risklabel").textContent = Math.round(chaos.risk) + "%";
+  document.body.classList.toggle("blazing", damnation.checked && chaos.temp > 75);
+  document.body.classList.toggle("frozen", damnation.checked && chaos.temp < 10);
+}
+
+function rite(name) {
+  if (chaos.dead) return;
+  if (name === "coal") {
+    chaos.temp = Math.min(100, chaos.temp + 40);
+    setStatus("Coal shoveled. Temperature now " + Math.round(chaos.temp) + "%.");
+    if (chaos.temp >= 100) return burnFile();
+  } else if (document.body.classList.contains("frozen")) {
+    return setStatus("[FROZEN] Your hands refuse. Only coal thaws you.");
+  } else if (name === "holywater") {
+    chaos.temp = Math.max(0, chaos.temp - 40);
+    setStatus("Holy water hisses. Temperature now " + Math.round(chaos.temp) + "%.");
+  } else if (name === "exorcise") {
+    if (!chaos.ghostDebts.length) {
+      setStatus("You swing at nothing. The house was already clean.");
+    } else {
+      let text = editor.value;
+      for (const d of chaos.ghostDebts.reverse())
+        text = text.replace(d.find, d.original);
+      editor.value = text;
+      setStatus("Exorcised " + chaos.ghostDebts.length +
+                " ghost commit(s). It was real. It was always real.");
+      chaos.ghostDebts = [];
+      refreshGutter(); autosave();
+    }
+  }
+  gaugeRefresh();
+}
+
+/* --- overlay helpers --- */
+const ov = {
+  el: document.getElementById("overlay"),
+  title: document.getElementById("ov-title"),
+  art: document.getElementById("ov-art"),
+  msg: document.getElementById("ov-msg"),
+  timer: document.getElementById("ov-timer"),
+  input: document.getElementById("ov-input"),
+  btn: document.getElementById("ov-btn"),
+};
+function showOverlay({title, art, msg, button}) {
+  ov.title.textContent = title || "";
+  ov.art.textContent = art || "";
+  ov.msg.textContent = msg || "";
+  ov.timer.textContent = "";
+  ov.input.hidden = true; ov.btn.hidden = !button;
+  ov.el.classList.add("show");
+}
+function hideOverlay() { ov.el.classList.remove("show"); }
+
+const DEMON_FACE = String.raw`
+      ,           ,
+     /             \
+    ((__-^^-,-^^-__))
+     \-_---' '---_-/
+      \--|o' 'o|--/
+         \  '  /
+          ): :(
+          :o_o:
+           "-"`;
+
+function die(title, art, msg) {
+  // Death in the web inferno: the buffer AND the autosave are consumed.
+  chaos.dead = true;
+  editor.value = "";
+  localStorage.removeItem(LS_KEY);
+  refreshGutter();
+  showOverlay({title, art, msg: msg + " (Damnation Mode kept its promise. Refresh to be reborn.)",
+               button: true});
+  chaos.dead = false; // rebirth on overlay close — mercy, web edition
+  chaos.temp = 50; chaos.risk = 0; chaos.dairy = 0; chaos.ghostDebts = [];
+  gaugeRefresh();
+}
+function burnFile() {
+  die("100% TEMPERATURE", "   ( ( (  FIRE  ) ) )", "The file burns.");
+}
+
+/* --- Hazard D: ghost commits, 60-second silent timer --- */
+const GHOST_FLIPS = [["==","!="],["!=","=="],["<=",">="],[">=","<="],["<",">"],[">","<"]];
+function ghostCommit() {
+  if (!damnation.checked || chaos.dead) return;
+  const text = editor.value;
+  for (const [op, inv] of GHOST_FLIPS.sort((a,b) => b[0].length - a[0].length)) {
+    const i = text.indexOf(op);
+    if (i !== -1) {
+      // Flip one operator. Say absolutely nothing about it.
+      const original = text.slice(Math.max(0,i-12), i + op.length + 12);
+      editor.value = text.slice(0, i) + inv + text.slice(i + op.length);
+      const corrupted = editor.value.slice(Math.max(0,i-12), i + inv.length + 12);
+      chaos.ghostDebts.push({find: corrupted, original});
+      autosave();
+      return;
+    }
+  }
+}
+
+/* --- Hazard C: solar flare QTE --- */
+function solarFlare() {
+  showOverlay({title: "[WARNING: SOLAR FLARE DETECTED]",
+               msg: "Type `func shield` and press Enter. 3 seconds."});
+  ov.input.hidden = false; ov.input.value = ""; ov.input.focus();
+  let remaining = 3.0;
+  const tick = setInterval(() => {
+    remaining -= 0.1;
+    ov.timer.textContent = remaining.toFixed(1) + "s";
+    if (remaining <= 0) fail();
+  }, 100);
+  function done() { clearInterval(tick); ov.input.onkeydown = null; hideOverlay(); }
+  function fail() {
+    done();
+    setStatus("The flare hits. Your screen is lying to you now.");
+    startScramble(30);
+  }
+  ov.input.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      if (ov.input.value.trim() === "func shield") {
+        done(); setStatus("Shield raised. The flare licks past harmlessly.");
+      } else fail();
+    }
+  };
+}
+
+function startScramble(seconds) {
+  // The DISPLAY scrambles; the buffer underneath stays intact.
+  chaos.scrambleUntil = Date.now() + seconds * 1000;
+  document.body.classList.add("scrambled");
+  clearInterval(chaos.scrambleTimer);
+  const GLYPHS = "!@#$%^&*()_+-=[]{}|;:<>?/~`abcdefXYZ";
+  chaos.scrambleTimer = setInterval(() => {
+    if (Date.now() >= chaos.scrambleUntil) {
+      clearInterval(chaos.scrambleTimer);
+      document.body.classList.remove("scrambled");
+      setStatus("The interference clears. Was your code always like that?");
+      return;
+    }
+    scrambleEl.textContent = editor.value.replace(/[^\s]/g,
+      () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)]);
+  }, 250);
+}
+
+/* --- Hazard E: the lactose intolerant compiler --- */
+const DAIRY_WORDS = /\b(copy|paste|loop|while)\b/i;
+function dairyCheck(line, priorLines) {
+  let offense = DAIRY_WORDS.test(line);
+  if (line.trim() && priorLines.includes(line)) offense = true;
+  if (!offense) return;
+  chaos.dairy += 25;
+  if (chaos.dairy >= 100) {
+    // The output curdles: force a download under the .spoiled name,
+    // then the buffer is lost to spoilage.
+    const name = (document.getElementById("filename").value || "inferno.bs")
+                   .replace(/\.bs$/, "") + ".spoiled";
+    saveFile(name);
+    die("DAIRY METER: 100%", "    |MILK|\n    |2014|\n    ~glug~",
+        "The compiler curdles. Your work was exported as " + name + ".");
+  }
+}
+
+/* --- per-line-commit gauntlet (fires when Enter is pressed in editor) --- */
+function onLineCommit(committedLine) {
+  if (!damnation.checked || chaos.dead) return;
+
+  chaos.temp = Math.min(100, chaos.temp + 5);
+  if (chaos.temp >= 100) { gaugeRefresh(); return burnFile(); }
+
+  chaos.risk = Math.min(100, chaos.risk + 2);
+  if (Math.floor(Math.random() * 100) + 1 <= chaos.risk) {
+    gaugeRefresh();
+    return die("THE DICE CAME UP DEMON", DEMON_FACE,
+               "The instability claims your file.");
+  }
+
+  const prior = editor.value.split("\n").slice(0, -1);
+  dairyCheck(committedLine, prior.slice(0, -1));
+  if (!chaos.dead && Math.floor(Math.random() * 20) === 0) solarFlare();
+  gaugeRefresh();
+}
+
+editor.addEventListener("keydown", (e) => {
+  if (document.body.classList.contains("frozen") && e.key.length === 1) {
+    e.preventDefault();
+    setStatus("[FROZEN] Typing is forbidden. Shovel coal.");
+    return;
+  }
+  if (e.key === "Enter") {
+    // capture the line being committed (text before the caret, last line)
+    const before = editor.value.slice(0, editor.selectionStart);
+    const line = before.split("\n").pop();
+    // run the gauntlet after the newline lands in the buffer
+    setTimeout(() => onLineCommit(line), 0);
+  }
+});
+
+editor.addEventListener("input", () => { refreshGutter(); autosave(); });
+
+damnation.addEventListener("change", () => {
+  document.body.classList.toggle("damned", damnation.checked);
+  if (damnation.checked) {
+    setStatus("DAMNATION MODE engaged. Every line now has consequences.");
+    clearInterval(chaos.ghostTimer);
+    chaos.ghostTimer = setInterval(ghostCommit, 60000); // Hazard D
+  } else {
+    clearInterval(chaos.ghostTimer);
+    document.body.classList.remove("blazing", "frozen");
+    setStatus("Damnation suspended. The IDE pretends to be normal software.");
+  }
+  gaugeRefresh();
+});
+
+gaugeRefresh();
+</script>
+</body>
+</html>
