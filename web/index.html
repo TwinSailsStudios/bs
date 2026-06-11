@@ -5,588 +5,320 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Brimstone IDE</title>
 <style>
+  /* ======================================================================
+     Two plain colors per theme. Dark: #d4d4d4 on #1e1e1e.
+     Light: #333333 on #ffffff. Hierarchy is done with opacity only.
+     ====================================================================== */
+  :root { --bg: #1e1e1e; --fg: #d4d4d4; }
+  body.light { --bg: #ffffff; --fg: #333333; }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
-
   body {
-    display: flex;
-    flex-direction: column;
-    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    background: #1e1e1e;
-    color: #d4d4d4;
+    display: flex; flex-direction: column;
+    font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, "Courier New", monospace;
+    font-size: 13px; line-height: 1.6;
+    background: var(--bg); color: var(--fg);
     overflow: hidden;
   }
 
-  body.light {
-    background: #ffffff;
-    color: #333333;
+  /* --- header: gauges (text-based, per spec) --- */
+  #gaugebar {
+    flex: none; padding: 6px 12px; white-space: pre;
+    border-bottom: 1px solid var(--fg);
+    font-size: 13px; overflow: hidden;
   }
 
-  /* Top bar */
+  /* --- top bar: ONLY save/load buttons + filename, per spec --- */
   #topbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    background: #252526;
-    border-bottom: 1px solid #3e3e42;
-    flex: none;
+    flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-bottom: 1px solid var(--fg);
   }
-
-  body.light #topbar {
-    background: #f3f3f3;
-    border-bottom-color: #e0e0e0;
+  #topbar .brand { font-weight: bold; }
+  #topbar .hint { opacity: .5; font-size: 12px; }
+  #filename {
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--fg); padding: 3px 8px;
+    font-family: inherit; font-size: 12px; width: 150px;
   }
-
-  #topbar input {
-    background: #3c3c3c;
-    color: #d4d4d4;
-    border: 1px solid #555555;
-    padding: 4px 8px;
-    font-family: inherit;
-    font-size: 12px;
-    width: 140px;
+  #topbar button, #topbar label.btn {
+    background: var(--fg); color: var(--bg); border: none;
+    padding: 4px 12px; cursor: pointer;
+    font-family: inherit; font-size: 12px;
   }
-
-  body.light #topbar input {
-    background: #ffffff;
-    color: #333333;
-    border-color: #cccccc;
-  }
-
-  #topbar button, #topbar label {
-    background: #0e639c;
-    color: #ffffff;
-    border: none;
-    padding: 4px 10px;
-    cursor: pointer;
-    font-size: 12px;
-    font-family: inherit;
-  }
-
-  #topbar button:hover {
-    background: #1177bb;
-  }
-
-  body.light #topbar button, body.light #topbar label {
-    background: #0e639c;
-  }
-
-  #topbar label { display: inline-flex; }
-  #topbar label input[type="file"] { display: none; }
-
+  #topbar button:hover, #topbar label.btn:hover { opacity: .8; }
   .spacer { flex: 1; }
 
-  #themeToggle {
-    background: #555555;
-    padding: 4px 8px;
+  /* --- ASCII flame rows (visible only when temperature > 75) --- */
+  .flames {
+    flex: none; display: none; white-space: pre; overflow: hidden;
+    padding: 0 12px; font-size: 12px; opacity: .9;
   }
+  body.blazing .flames { display: block; }
 
-  #themeToggle:hover {
-    background: #666666;
-  }
-
-  body.light #themeToggle:hover {
-    background: #cccccc;
-  }
-
-  /* Main split */
-  #main {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    gap: 1px;
-    background: #3e3e42;
-  }
-
-  /* Editor section */
-  #editorSection {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-    background: #1e1e1e;
-  }
-
-  body.light #editorSection {
-    background: #ffffff;
-  }
-
-  #editorContainer {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    position: relative;
-  }
-
+  /* --- editor --- */
+  #main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #editorContainer { flex: 1; display: flex; min-height: 0; position: relative; }
   #gutter {
-    background: #1e1e1e;
-    color: #6a6a6a;
-    padding: 0 8px;
-    text-align: right;
-    user-select: none;
-    flex: none;
-    width: 44px;
-    overflow: hidden;
-    border-right: 1px solid #3e3e42;
-    font-size: 12px;
-  }
-
-  body.light #gutter {
-    background: #ffffff;
-    color: #999999;
-    border-right-color: #e0e0e0;
-  }
-
-  #editor {
-    flex: 1;
-    background: transparent;
-    color: #d4d4d4;
-    border: none;
-    outline: none;
-    resize: none;
-    padding: 0 12px;
-    font-family: inherit;
-    font-size: 13px;
-    line-height: 1.6;
+    flex: none; width: 46px; padding: 0 8px; text-align: right;
+    opacity: .4; user-select: none; overflow: hidden;
+    border-right: 1px solid var(--fg); font-size: 12px;
     white-space: pre;
-    overflow-wrap: normal;
-    caret-color: #aeafad;
   }
-
-  body.light #editor {
-    color: #333333;
-    caret-color: #666666;
+  #editor {
+    flex: 1; background: transparent; color: var(--fg);
+    border: none; outline: none; resize: none;
+    padding: 0 12px; font-family: inherit; font-size: 13px; line-height: 1.6;
+    white-space: pre; overflow-wrap: normal; overflow: auto;
+    caret-color: var(--fg);
   }
+  #editor::selection { background: var(--fg); color: var(--bg); }
 
-  #editor::selection {
-    background: #264f78;
+  /* solar-flare scramble: hide the real text, show the lying overlay */
+  body.scrambled #editor { color: transparent; caret-color: transparent; }
+  #scramble {
+    display: none; position: absolute; inset: 0; left: 46px;
+    padding: 0 12px; font-size: 13px; line-height: 1.6;
+    white-space: pre; pointer-events: none; overflow: hidden;
+    color: var(--fg);
   }
+  body.scrambled #scramble { display: block; }
 
-  body.light #editor::selection {
-    background: #add6ff;
+  /* --- autocomplete suggestions (VS Code style) --- */
+  #suggest {
+    display: none; position: absolute; z-index: 30;
+    background: var(--bg); border: 1px solid var(--fg);
+    font-size: 12px; min-width: 220px; max-height: 180px; overflow-y: auto;
   }
+  #suggest.show { display: block; }
+  #suggest .item { padding: 2px 10px; cursor: pointer; white-space: pre; }
+  #suggest .item .kind { opacity: .5; float: right; margin-left: 16px; }
+  #suggest .item.sel { background: var(--fg); color: var(--bg); }
+  #suggest .item.sel .kind { opacity: .7; }
 
-  /* Output section */
+  /* --- output panel --- */
   #outputSection {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 200px;
-    background: #1e1e1e;
-    border-top: 1px solid #3e3e42;
+    flex: 0 0 170px; display: flex; flex-direction: column;
+    border-top: 1px solid var(--fg);
   }
-
-  body.light #outputSection {
-    background: #ffffff;
-    border-top-color: #e0e0e0;
-  }
-
   #outputLabel {
-    padding: 4px 12px;
-    background: #252526;
-    border-bottom: 1px solid #3e3e42;
-    color: #cccccc;
-    font-size: 12px;
-    font-weight: bold;
-    flex: none;
+    flex: none; padding: 3px 12px; font-size: 11px; letter-spacing: 1px;
+    border-bottom: 1px solid var(--fg); opacity: .6;
   }
-
-  body.light #outputLabel {
-    background: #f3f3f3;
-    border-bottom-color: #e0e0e0;
-    color: #333333;
-  }
-
   #output {
-    flex: 1;
-    overflow: auto;
-    padding: 8px 12px;
-    font-size: 12px;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+    flex: 1; overflow: auto; padding: 6px 12px; font-size: 12px;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  #output .dim { opacity: .5; }
+  #output .strong { font-weight: bold; }
+
+  /* --- status line --- */
+  #statusline {
+    flex: none; padding: 4px 12px; font-size: 12px;
+    border-top: 1px solid var(--fg); min-height: 26px;
+    white-space: pre; overflow: hidden;
   }
 
-  #output .ok { color: #4ec9b0; }
-  #output .err { color: #f48771; }
-  #output .sys { color: #6a6a6a; }
-
-  body.light #output .ok { color: #0a7e3d; }
-  body.light #output .err { color: #a1260d; }
-  body.light #output .sys { color: #999999; }
-
-  /* Converter modal */
-  #converterModal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 100;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+  /* --- full-screen modal (hazard QTEs, death screens). Text only. --- */
+  #overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: var(--bg);
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 14px; padding: 24px;
   }
-
-  #converterModal.show {
-    display: flex;
-  }
-
-  #converterBox {
-    background: #1e1e1e;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    width: 90%;
-    max-width: 900px;
-    height: 80%;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  }
-
-  body.light #converterBox {
-    background: #ffffff;
-    border-color: #e0e0e0;
-  }
-
-  #converterBox header {
-    padding: 12px;
-    border-bottom: 1px solid #3e3e42;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #252526;
-  }
-
-  body.light #converterBox header {
-    background: #f3f3f3;
-    border-bottom-color: #e0e0e0;
-  }
-
-  #converterBox h2 {
-    font-size: 14px;
-    color: #d4d4d4;
-  }
-
-  body.light #converterBox h2 {
-    color: #333333;
-  }
-
-  #converterBox .close-btn {
-    background: none;
-    border: none;
-    color: #d4d4d4;
-    cursor: pointer;
-    font-size: 18px;
-  }
-
-  body.light #converterBox .close-btn {
-    color: #333333;
-  }
-
-  #converterBody {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    gap: 1px;
-    background: #3e3e42;
-  }
-
-  .converter-pane {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .converter-pane-label {
-    padding: 4px 8px;
-    background: #252526;
-    border-bottom: 1px solid #3e3e42;
-    font-size: 11px;
-    color: #999999;
-    flex: none;
-  }
-
-  body.light .converter-pane-label {
-    background: #f3f3f3;
-    border-bottom-color: #e0e0e0;
-    color: #666666;
-  }
-
-  .converter-textarea {
-    flex: 1;
-    background: #1e1e1e;
-    color: #d4d4d4;
-    border: none;
-    padding: 8px;
-    font-family: inherit;
-    font-size: 12px;
-    resize: none;
-    outline: none;
-  }
-
-  body.light .converter-textarea {
-    background: #ffffff;
-    color: #333333;
-  }
-
-  #converterArrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 16px;
-    flex: none;
-  }
-
-  #converterArrow button {
-    background: #0e639c;
-    color: #ffffff;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-size: 12px;
-    margin: 2px;
-  }
-
-  #converterArrow button:hover {
-    background: #1177bb;
-  }
-
-  body.light #converterArrow button {
-    background: #0e639c;
-  }
-
-  #converterFooter {
-    padding: 8px;
-    border-top: 1px solid #3e3e42;
-    background: #252526;
-    display: flex;
-    gap: 6px;
-  }
-
-  body.light #converterFooter {
-    background: #f3f3f3;
-    border-top-color: #e0e0e0;
-  }
-
-  #converterFooter button {
-    background: #0e639c;
-    color: #ffffff;
-    border: none;
-    padding: 4px 10px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-
-  #converterFooter button:hover {
-    background: #1177bb;
+  #overlay.show { display: flex; }
+  #overlay pre { font-size: 13px; }
+  #overlay .title { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
+  #overlay .timer { font-size: 24px; }
+  #overlay input {
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--fg); padding: 6px 10px;
+    font-family: inherit; font-size: 14px; width: min(620px, 90vw);
+    text-align: center; outline: none;
   }
 </style>
 </head>
 <body>
 
+<div id="gaugebar">TEMP [#####.....]  50%   RISK [..........]   0%</div>
+
 <div id="topbar">
-  <strong>Brimstone</strong>
+  <span class="brand">Brimstone</span>
   <input id="filename" value="inferno.bs" spellcheck="false">
-  <button onclick="compileAndRun()">▶ Run</button>
-  <button onclick="showConverter()">⇄ Convert</button>
-  <button onclick="saveFile()">↓ Save</button>
-  <label>↑ Load <input type="file" id="loader" accept=".bs,.py,.txt"></label>
+  <button onclick="saveFile()">Save</button>
+  <label class="btn">Load<input type="file" id="loader" accept=".bs,.py,.spoiled,.txt" hidden></label>
   <span class="spacer"></span>
-  <button id="themeToggle" onclick="toggleTheme()">☀</button>
+  <span class="hint">type `func help` for commands</span>
 </div>
+
+<div id="flameTop" class="flames"></div>
 
 <div id="main">
-  <div id="editorSection">
-    <div id="editorContainer">
-      <div id="gutter">1</div>
-      <textarea id="editor" spellcheck="false"
-        placeholder="summon math&#10;rite hello():&#10;    manifest('compiling...')&#10;hello()"></textarea>
-    </div>
+  <div id="editorContainer">
+    <div id="gutter">1</div>
+    <textarea id="editor" spellcheck="false" autocomplete="off"
+      placeholder="summon math&#10;rite hello():&#10;    manifest('the abyss compiles you back')&#10;hello()&#10;func compile"></textarea>
+    <div id="scramble"></div>
+    <div id="suggest"></div>
   </div>
-
+  <div id="flameBottom" class="flames"></div>
   <div id="outputSection">
-    <div id="outputLabel">Output</div>
-    <div id="output"><span class="sys">Ready.</span></div>
+    <div id="outputLabel">OUTPUT</div>
+    <div id="output"><span class="dim">Ready. The gauges are watching.</span></div>
   </div>
 </div>
 
-<!-- Converter Modal -->
-<div id="converterModal">
-  <div id="converterBox">
-    <header>
-      <h2>Converter</h2>
-      <button class="close-btn" onclick="hideConverter()">✕</button>
-    </header>
-    <div id="converterBody">
-      <div class="converter-pane">
-        <div class="converter-pane-label">Python</div>
-        <textarea id="converterPy" class="converter-textarea" spellcheck="false"
-          placeholder="Paste Python code here..."></textarea>
-      </div>
-      <div id="converterArrow">
-        <button onclick="pyToBs()">→</button>
-        <button onclick="bsToPy()">←</button>
-      </div>
-      <div class="converter-pane">
-        <div class="converter-pane-label">Brimstone</div>
-        <textarea id="converterBs" class="converter-textarea" spellcheck="false"
-          placeholder="Paste Brimstone code here..."></textarea>
-      </div>
-    </div>
-    <div id="converterFooter">
-      <button onclick="copyConverterBs()">Copy BS</button>
-      <button onclick="copyConverterPy()">Copy Py</button>
-      <button onclick="insertConverterBsToEditor()">Insert BS to Editor</button>
-      <button onclick="hideConverter()">Close</button>
-    </div>
-  </div>
+<div id="statusline">Welcome to BRIMSTONE. Type code. Press Enter. Pray.</div>
+
+<div id="overlay">
+  <div class="title" id="ov-title"></div>
+  <pre id="ov-art"></pre>
+  <div id="ov-msg"></div>
+  <div class="timer" id="ov-timer"></div>
+  <input id="ov-input" hidden autocomplete="off" spellcheck="false">
+  <div class="hint" id="ov-hint" style="opacity:.5"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 "use strict";
 /* =========================================================================
-   BRIMSTONE WEB IDE — VS Code style, text-based, with converter
+   BRIMSTONE WEB IDE — the full engine, no toggles.
+   Gauges, pillars, and all five hazards are always live, exactly like the
+   terminal IDE. Everything is text-driven (`func ...` commands typed into
+   the editor) except the Save/Load buttons. VS Code-style autocomplete
+   included — partly as mercy, since misspelled keywords are a hazard.
+
+   "The file" in the browser means the editor buffer + its localStorage
+   autosave. Death consumes both; files saved to disk are out of reach.
    ========================================================================= */
 
-// --- Theme management ---
-function toggleTheme() {
-  document.body.classList.toggle("light");
-  localStorage.setItem("brimstone-theme", document.body.classList.contains("light") ? "light" : "dark");
-}
-
-(function() {
-  const saved = localStorage.getItem("brimstone-theme");
-  if (saved === "light") document.body.classList.add("light");
-})();
-
-// --- Translation (Brimstone → Python) ---
+/* ----- translation layer (identical to brimstone.py) ----- */
 const KEYWORD_MAP = {
   manifest: "print", demand: "input", summon: "import", rite: "def",
   PURE: "True", CORRUPT: "False", sin: "try", atone: "except",
 };
+const ALL_KEYWORDS = Object.keys(KEYWORD_MAP).concat(["suffer"]);
+const DAIRY_WORDS = ["copy", "paste", "loop", "while"];
 
 function translate(source) {
   return source.split("\n").map(line => {
-    if (/\bsuffer\b.*\bin\b/.test(line)) {
-      line = line.replace(/\bsuffer\b/g, "for");
-    } else {
-      line = line.replace(/\bsuffer\b/g, "while");
-    }
-    for (const [bs, py] of Object.entries(KEYWORD_MAP)) {
+    if (/\bsuffer\b.*\bin\b/.test(line)) line = line.replace(/\bsuffer\b/g, "for");
+    else line = line.replace(/\bsuffer\b/g, "while");
+    for (const [bs, py] of Object.entries(KEYWORD_MAP))
       line = line.replace(new RegExp("\\b" + bs + "\\b", "g"), py);
-    }
     return line;
   }).join("\n");
 }
-
-// --- Reverse translation (Python → Brimstone) ---
-const REVERSE_MAP = {
-  "print": "manifest",
-  "input": "demand",
-  "import": "summon",
-  "def": "rite",
-  "True": "PURE",
-  "False": "CORRUPT",
-  "try": "sin",
-  "except": "atone",
-};
 
 function reverseTranslate(source) {
+  const REVERSE = { print: "manifest", input: "demand", import: "summon",
+    def: "rite", True: "PURE", False: "CORRUPT", try: "sin", except: "atone" };
   return source.split("\n").map(line => {
-    // Replace "while" with "suffer" (but NOT inside for-loops)
-    if (!/\bfor\b/.test(line)) {
-      line = line.replace(/\bwhile\b/g, "suffer");
-    }
-    // Replace "for X in Y:" with "suffer X in Y:" (actually already compatible, but be explicit)
-    line = line.replace(/\bfor\b/g, "suffer");
-
-    for (const [py, bs] of Object.entries(REVERSE_MAP)) {
+    line = line.replace(/\bwhile\b/g, "suffer").replace(/\bfor\b/g, "suffer");
+    for (const [py, bs] of Object.entries(REVERSE))
       line = line.replace(new RegExp("\\b" + py + "\\b", "g"), bs);
-    }
     return line;
   }).join("\n");
 }
 
-// --- DOM elements ---
+function editDistance(a, b) {
+  if (a.length < b.length) [a, b] = [b, a];
+  let prev = Array.from({length: b.length + 1}, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++)
+      cur.push(Math.min(prev[j] + 1, cur[j - 1] + 1,
+                        prev[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0)));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/* ----- ASCII death art ----- */
+const DEMON_FACE = [
+  "        ,           ,",
+  "       /             \\",
+  "      ((__-^^-,-^^-__))",
+  "       `-_---' `---_-'",
+  "        `--|o` 'o|--'",
+  "           \\  `  /",
+  "            ): :(",
+  "            :o_o:",
+  '             "-"',
+].join("\n");
+
+const FIRE_DEATH = [
+  "      (  .      )",
+  "   )           (    )",
+  "  (    , )     (.   )",
+  " ). , ( .   (  ) ( , ')",
+  "(_,) . ), ) _) _,')  (,",
+].join("\n");
+
+const PILLAR_DEATH = [
+  "   ||    |  | |  |      ||",
+  "   ||    |  | |  |      ||",
+  "   ||    |  | |__| CRACK||",
+  " __||___________________||__",
+].join("\n");
+
+const SPOILED_ART = [
+  "    ______",
+  "   |      |     ~ glug ~",
+  "   | MILK |",
+  "   | 2014 |",
+  "   |______|",
+].join("\n");
+
+const MEMORY_DEMON_QUOTES = [
+  "The semicolon is a leash for thoughts too wild to end.",
+  "Every bug is a confession written in someone else's blood.",
+  "I do not sleep. I garbage collect.",
+  "Hell is other people's code reviews.",
+  "The stack grows downward, like all things that fall.",
+  "To suffer is to loop. To loop is to live.",
+  "There are no warnings in Brimstone, only consequences.",
+  "Your variables are named after things you have lost.",
+];
+
+/* ----- DOM ----- */
 const editor = document.getElementById("editor");
 const gutter = document.getElementById("gutter");
 const output = document.getElementById("output");
+const gaugebar = document.getElementById("gaugebar");
+const statusline = document.getElementById("statusline");
+const scrambleEl = document.getElementById("scramble");
+const suggestEl = document.getElementById("suggest");
 const filenameInput = document.getElementById("filename");
-const converterModal = document.getElementById("converterModal");
-const converterPy = document.getElementById("converterPy");
-const converterBs = document.getElementById("converterBs");
+const flameTop = document.getElementById("flameTop");
+const flameBottom = document.getElementById("flameBottom");
+const ov = {
+  el: document.getElementById("overlay"),
+  title: document.getElementById("ov-title"),
+  art: document.getElementById("ov-art"),
+  msg: document.getElementById("ov-msg"),
+  timer: document.getElementById("ov-timer"),
+  input: document.getElementById("ov-input"),
+  hint: document.getElementById("ov-hint"),
+};
 
-// --- Gutter line numbers ---
-function refreshGutter() {
-  const n = editor.value.split("\n").length;
-  gutter.textContent = Array.from({length: n}, (_, i) => i + 1).join("\n");
-  gutter.scrollTop = editor.scrollTop;
-}
+/* ----- engine state (mirrors the terminal IDE) ----- */
+const state = {
+  temp: 50,            // temperature gauge, starts 50%
+  risk: 0,             // instability risk, starts 0%
+  dairy: 0,            // Hazard E: hidden meter. No UI. As is tradition.
+  pillars: [],         // [{idx, ch}] load-bearing characters. Hidden.
+  ghostDebts: [],      // [{corrupted, original}] for exorcism
+  lastValue: "",       // previous editor content, for edit diffing
+  modal: false,        // a hazard QTE is on screen
+  dead: false,
+  scrambleTimer: null,
+  flameTimer: null,
+};
 
-editor.addEventListener("scroll", () => {
-  gutter.scrollTop = editor.scrollTop;
-});
-
-editor.addEventListener("input", () => {
-  refreshGutter();
-  autosave();
-});
-
-// --- Autosave & restore ---
-const LS_KEY = "brimstone.buffer", LS_NAME = "brimstone.filename";
-
-function autosave() {
-  localStorage.setItem(LS_KEY, editor.value);
-  localStorage.setItem(LS_NAME, filenameInput.value);
-}
-
-(function restore() {
-  const saved = localStorage.getItem(LS_KEY);
-  if (saved !== null) editor.value = saved;
-  const name = localStorage.getItem(LS_NAME);
-  if (name) filenameInput.value = name;
-  refreshGutter();
-})();
-
-// --- File I/O ---
-function saveFile() {
-  let name = filenameInput.value.trim() || "inferno.bs";
-  if (!name.endsWith(".bs") && !name.endsWith(".py")) name += ".bs";
-  const blob = new Blob([editor.value], {type: "text/plain"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-document.getElementById("loader").addEventListener("change", async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  editor.value = await f.text();
-  filenameInput.value = f.name;
-  refreshGutter();
-  autosave();
-  e.target.value = "";
-});
-
-// --- Pyodide runtime ---
-let pyodidePromise = null;
-
-function getPyodide() {
-  if (!pyodidePromise) {
-    pyodidePromise = loadPyodide().catch(err => {
-      pyodidePromise = null;
-      throw new Error("Failed to load Python: " + err);
-    });
-  }
-  return pyodidePromise;
-}
-
-function logOutput(msg, cls) {
+function setStatus(msg) { statusline.textContent = msg; }
+function log(msg, cls) {
   const span = document.createElement("span");
   if (cls) span.className = cls;
   span.textContent = msg + "\n";
@@ -594,79 +326,710 @@ function logOutput(msg, cls) {
   output.scrollTop = output.scrollHeight;
 }
 
-async function compileAndRun() {
-  const source = editor.value;
-  const python = translate(source);
-
-  output.textContent = "";
-  logOutput("→ Translating Brimstone to Python...", "sys");
-  await new Promise(r => setTimeout(r, 100));
-
-  let py;
-  try {
-    py = await getPyodide();
-  } catch (err) {
-    logOutput(String(err), "err");
-    return;
-  }
-
-  py.setStdout({batched: s => logOutput(s)});
-  py.setStderr({batched: s => logOutput(s, "err")});
-  py.setStdin({stdin: () => prompt("Input:") ?? ""});
-
-  try {
-    await py.runPythonAsync(python);
-    logOutput("[OK] Executed successfully.", "ok");
-  } catch (err) {
-    logOutput("[ERROR] " + err.message, "err");
+/* ----- gauges (text rendering, real-time) ----- */
+function bar(pct) {
+  const n = Math.round(pct / 10);
+  return "[" + "#".repeat(n) + ".".repeat(10 - n) + "]";
+}
+function refreshGauges() {
+  let tags = "";
+  if (state.temp < 10) tags += "   [FROZEN — only `func coal`]";
+  else if (state.temp > 75) tags += "   [BLAZING]";
+  gaugebar.textContent =
+    "TEMP " + bar(state.temp) + " " + String(Math.round(state.temp)).padStart(3) + "%" +
+    "   RISK " + bar(state.risk) + " " + String(Math.round(state.risk)).padStart(3) + "%" + tags;
+  const blazing = state.temp > 75;
+  document.body.classList.toggle("blazing", blazing);
+  if (blazing && !state.flameTimer) {
+    state.flameTimer = setInterval(drawFlames, 250);
+    drawFlames();
+  } else if (!blazing && state.flameTimer) {
+    clearInterval(state.flameTimer);
+    state.flameTimer = null;
   }
 }
-
-// --- Converter ---
-function showConverter() {
-  converterModal.classList.add("show");
-  converterPy.focus();
+function drawFlames() {
+  // Procedural ASCII flames on the editor borders, per spec.
+  const chars = ")(/\\^*'`.";
+  const width = Math.floor(editor.clientWidth / 8) || 80;
+  const row = () => Array.from({length: width},
+    () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  flameTop.textContent = row();
+  flameBottom.textContent = row();
 }
 
-function hideConverter() {
-  converterModal.classList.remove("show");
+/* ----- gutter / autosave ----- */
+function refreshGutter() {
+  const n = editor.value.split("\n").length;
+  gutter.textContent = Array.from({length: n}, (_, i) => i + 1).join("\n");
+  gutter.scrollTop = editor.scrollTop;
+}
+editor.addEventListener("scroll", () => {
+  gutter.scrollTop = editor.scrollTop;
+  scrambleEl.scrollTop = editor.scrollTop;
+});
+
+const LS_KEY = "brimstone.buffer", LS_NAME = "brimstone.filename",
+      LS_THEME = "brimstone.theme";
+function autosave() {
+  localStorage.setItem(LS_KEY, editor.value);
+  localStorage.setItem(LS_NAME, filenameInput.value);
 }
 
-function pyToBs() {
-  converterBs.value = reverseTranslate(converterPy.value);
-}
-
-function bsToPy() {
-  converterPy.value = translate(converterBs.value);
-}
-
-function copyConverterBs() {
-  converterBs.select();
-  document.execCommand("copy");
-}
-
-function copyConverterPy() {
-  converterPy.select();
-  document.execCommand("copy");
-}
-
-function insertConverterBsToEditor() {
-  editor.value = converterBs.value;
+/* ----- system edits: change the buffer WITHOUT triggering pillar wrath -----
+   The pillars punish the user's hand only. Ghosts and ransomware re-anchor. */
+function systemSetValue(text) {
+  editor.value = text;
+  state.lastValue = text;
+  prunePillars();
   refreshGutter();
   autosave();
-  hideConverter();
+}
+function prunePillars() {
+  const text = editor.value;
+  state.pillars = state.pillars.filter(p => p.idx < text.length && text[p.idx] === p.ch);
+}
+
+/* ----- 3. LOAD-BEARING PILLARS: diff-based detection of user edits ----- */
+function diffEdit(oldS, newS) {
+  // Locate the single edited region: oldS[start:endOld] -> newS[start:endNew]
+  let start = 0;
+  const minLen = Math.min(oldS.length, newS.length);
+  while (start < minLen && oldS[start] === newS[start]) start++;
+  let endOld = oldS.length, endNew = newS.length;
+  while (endOld > start && endNew > start && oldS[endOld - 1] === newS[endNew - 1]) {
+    endOld--; endNew--;
+  }
+  return { start, endOld, endNew };
+}
+
+function judgePillars(oldS, newS) {
+  // Returns true if a pillar was deleted/overwritten. Shifts survivors.
+  const { start, endOld, endNew } = diffEdit(oldS, newS);
+  for (const p of state.pillars)
+    if (p.idx >= start && p.idx < endOld) return true;   // touched. no warning.
+  const delta = (endNew - start) - (endOld - start);
+  for (const p of state.pillars) if (p.idx >= endOld) p.idx += delta;
+  return false;
+}
+
+function addPillar() {
+  const text = editor.value;
+  if (text.length) {
+    const idx = Math.floor(Math.random() * text.length);
+    state.pillars.push({ idx, ch: text[idx] });
+  }
+}
+
+/* ----- death ----- */
+function die(title, art, msg) {
+  state.dead = true;
+  systemSetValue("");
+  localStorage.removeItem(LS_KEY);
+  showOverlay({ title, art, msg: msg + "  (press Enter to be reborn)" });
+  ov.input.hidden = false; ov.input.value = ""; ov.input.focus();
+  ov.input.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      hideOverlay();
+      state.dead = false;
+      state.temp = 50; state.risk = 0; state.dairy = 0;
+      state.pillars = []; state.ghostDebts = [];
+      refreshGauges();
+      setStatus("Reborn. The gauges reset. The demons do not forget.");
+      editor.focus();
+    }
+  };
+}
+
+/* ----- modal plumbing ----- */
+function showOverlay({ title, art, msg, hint }) {
+  state.modal = true;
+  ov.title.textContent = title || "";
+  ov.art.textContent = art || "";
+  ov.msg.textContent = msg || "";
+  ov.timer.textContent = "";
+  ov.hint.textContent = hint || "";
+  ov.input.hidden = true; ov.input.onkeydown = null;
+  ov.el.classList.add("show");
+}
+function hideOverlay() {
+  state.modal = false;
+  ov.el.classList.remove("show");
   editor.focus();
 }
 
-// Close modal on Escape
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && converterModal.classList.contains("show")) {
-    hideConverter();
+/* Show a message for an exact duration, ignoring input (Memory Demon pt 1). */
+function modalMessage(opts, seconds) {
+  return new Promise(resolve => {
+    showOverlay(opts);
+    setTimeout(() => { hideOverlay(); resolve(); }, seconds * 1000);
+  });
+}
+
+/* Read a line with a live countdown. Resolves string, or null on timeout. */
+function timedInput(opts, seconds, onKeystroke) {
+  return new Promise(resolve => {
+    showOverlay(opts);
+    ov.input.hidden = false; ov.input.value = ""; ov.input.focus();
+    const deadline = Date.now() + seconds * 1000;
+    const tick = setInterval(() => {
+      const left = (deadline - Date.now()) / 1000;
+      if (left <= 0) finish(null);
+      else ov.timer.textContent = left.toFixed(1) + "s";
+    }, 100);
+    function finish(val) {
+      clearInterval(tick);
+      ov.input.oninput = null; ov.input.onkeydown = null;
+      hideOverlay();
+      resolve(val);
+    }
+    ov.input.oninput = () => { if (onKeystroke) onKeystroke(ov.input.value); };
+    ov.input.onkeydown = (e) => { if (e.key === "Enter") finish(ov.input.value); };
+  });
+}
+
+/* ----- HAZARD A: The Memory Demon (1-in-15 per line) ----- */
+async function hazardMemoryDemon() {
+  const quote = MEMORY_DEMON_QUOTES[Math.floor(Math.random() * MEMORY_DEMON_QUOTES.length)];
+  await modalMessage({
+    title: "A MEMORY DEMON RISES FROM THE HEAP",
+    msg: '"' + quote + '"',
+    hint: "MEMORIZE. YOU HAVE 5 SECONDS.",
+  }, 5);
+  const answer = await timedInput({
+    title: "THE DEMON DEMANDS ITS WORDS BACK",
+    msg: "Type the quote PERFECTLY and press Enter:",
+  }, 30);
+  if (answer !== quote) {
+    die("THE MEMORY DEMON WINS", DEMON_FACE, "You forgot Its words.");
+  } else {
+    setStatus("The demon nods, disgusted by your competence.");
+  }
+}
+
+/* ----- HAZARD B: Typo Ransomware ----- */
+function committedATypo(line) {
+  for (const word of line.match(/[A-Za-z_]+/g) || []) {
+    if (ALL_KEYWORDS.includes(word) || DAIRY_WORDS.includes(word) || word === "func") continue;
+    for (const kw of ALL_KEYWORDS)
+      if (word.length >= 3 && editDistance(word.toLowerCase(), kw.toLowerCase()) === 1)
+        return true;
+  }
+  return false;
+}
+
+async function hazardRansomware() {
+  const ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const ransom = Array.from({length: 50},
+    () => ALNUM[Math.floor(Math.random() * ALNUM.length)]).join("");
+  let punished = false;
+  const watch = (typed) => {
+    if (!punished && !ransom.startsWith(typed)) {
+      punished = true;
+      // Silently delete 5 random committed lines. Say nothing.
+      const lines = editor.value.split("\n");
+      for (let i = 0; i < 5 && lines.length; i++)
+        lines.splice(Math.floor(Math.random() * lines.length), 1);
+      systemSetValue(lines.join("\n"));
+    }
+  };
+  for (;;) { // locked until paid in full
+    const attempt = await timedInput({
+      title: "EDITOR LOCKED: TYPO RANSOMWARE",
+      msg: "You misspelled a sacred keyword. Retype this EXACTLY:",
+      hint: ransom,
+    }, 9999, watch);
+    if (attempt === ransom) break;
+    punished = false; // each fresh attempt can hurt again
+  }
+  setStatus("Unlocked. The compiler pretends nothing happened.");
+}
+
+/* ----- HAZARD C: Solar Flare ----- */
+async function hazardSolarFlare() {
+  const answer = await timedInput({
+    title: "[WARNING: SOLAR FLARE DETECTED]",
+    msg: "Type `func shield` and press Enter. 3 seconds.",
+  }, 3);
+  if (answer !== null && answer.trim() === "func shield") {
+    setStatus("Shield raised. The flare licks past harmlessly.");
+  } else {
+    startScramble(30);
+    setStatus("The flare hits. Your screen is lying to you now.");
+  }
+}
+
+function startScramble(seconds) {
+  // Scramble the DISPLAY only; the buffer underneath is untouched.
+  const until = Date.now() + seconds * 1000;
+  document.body.classList.add("scrambled");
+  clearInterval(state.scrambleTimer);
+  const GLYPHS = "!@#$%^&*()_+-=[]{}|;:<>?/~`#@!$%^&";
+  state.scrambleTimer = setInterval(() => {
+    if (Date.now() >= until) {
+      clearInterval(state.scrambleTimer);
+      document.body.classList.remove("scrambled");
+      setStatus("The interference clears. Was your code always like that?");
+      return;
+    }
+    scrambleEl.textContent = editor.value.replace(/[^\s]/g,
+      () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)]);
+    scrambleEl.scrollTop = editor.scrollTop;
+  }, 250);
+}
+
+/* ----- HAZARD D: Ghost Commits (60-second background timer) ----- */
+const GHOST_FLIPS = [["==", "!="], ["!=", "=="], ["<=", ">="], [">=", "<="], ["<", ">"], [">", "<"]];
+function hazardGhostCommit() {
+  if (state.dead || state.modal) return;
+  const text = editor.value;
+  // longest operators first so `<=` is not mangled via the bare `<` rule
+  for (const [op, inv] of [...GHOST_FLIPS].sort((a, b) => b[0].length - a[0].length)) {
+    const i = text.indexOf(op);
+    if (i !== -1) {
+      const corrupted = text.slice(Math.max(0, i - 12), i) + inv +
+                        text.slice(i + op.length, i + op.length + 12);
+      const original = text.slice(Math.max(0, i - 12), i + op.length + 12);
+      systemSetValue(text.slice(0, i) + inv + text.slice(i + op.length));
+      state.ghostDebts.push({ corrupted, original });
+      return; // one haunting per visit. NO notification. Ever.
+    }
+  }
+}
+setInterval(hazardGhostCommit, 60000);
+
+function exorcise() {
+  if (!state.ghostDebts.length) {
+    setStatus("You swing at nothing. The house was already clean.");
+    return;
+  }
+  let text = editor.value;
+  for (const d of [...state.ghostDebts].reverse())
+    text = text.replace(d.corrupted, d.original);
+  const n = state.ghostDebts.length;
+  state.ghostDebts = [];
+  systemSetValue(text);
+  setStatus("Exorcised " + n + " ghost commit(s). It was real. It was always real.");
+}
+
+/* ----- HAZARD E: The Lactose Intolerant Compiler ----- */
+function hazardDairyCheck(line, priorLines) {
+  const words = (line.match(/[A-Za-z_]+/g) || []).map(w => w.toLowerCase());
+  let offense = words.some(w => DAIRY_WORDS.includes(w));
+  if (line.trim() && priorLines.includes(line)) offense = true;
+  if (!offense) return;
+  state.dairy += 25; // hidden. no gauge. as is tradition.
+  if (state.dairy >= 100) {
+    // Crash the IDE; the output curdles from .bs to .spoiled.
+    let name = (filenameInput.value.trim() || "inferno.bs");
+    name = name.replace(/\.bs$/, "") + ".spoiled";
+    downloadAs(name, editor.value);
+    die("DAIRY METER: 100%", SPOILED_ART,
+        "The compiler curdles. Your work escaped as " + name + ".");
+  }
+}
+
+/* ----- commands (typed as lines; intercepted, never enter the file) ----- */
+const COMMANDS = [
+  "func holywater tg: fire",
+  "func coal",
+  "func shield",
+  "func exorcise tg: ghost",
+  "func compile",
+  "func pythonize",
+  "func brimstonify",
+  "func theme tg: dark",
+  "func theme tg: light",
+  "func help",
+];
+
+function runCommand(cmd) {
+  switch (cmd) {
+    case "func holywater tg: fire":
+      state.temp = Math.max(0, state.temp - 40);
+      setStatus("Holy water hisses. Temperature -40%. Now " + Math.round(state.temp) + "%.");
+      break;
+    case "func coal":
+      state.temp = Math.min(100, state.temp + 40);
+      setStatus("Coal shoveled. Temperature +40%. Now " + Math.round(state.temp) + "%.");
+      if (state.temp >= 100)
+        return die("100% TEMPERATURE", FIRE_DEATH, "The file burns.");
+      break;
+    case "func exorcise tg: ghost":
+      exorcise();
+      break;
+    case "func compile":
+      compileAndRun();
+      break;
+    case "func shield":
+      setStatus("You raise a shield at... nothing. The sun is calm.");
+      break;
+    case "func pythonize":
+      systemSetValue(translate(editor.value));
+      filenameInput.value = filenameInput.value.replace(/\.bs$/, "") .replace(/\.py$/, "") + ".py";
+      autosave();
+      setStatus("Buffer transmuted to Python. Save to export, `func brimstonify` to repent.");
+      break;
+    case "func brimstonify":
+      systemSetValue(reverseTranslate(editor.value));
+      filenameInput.value = filenameInput.value.replace(/\.py$/, "").replace(/\.bs$/, "") + ".bs";
+      autosave();
+      setStatus("Buffer transmuted to Brimstone. Welcome home.");
+      break;
+    case "func theme tg: dark":
+      document.body.classList.remove("light");
+      localStorage.setItem(LS_THEME, "dark");
+      setStatus("Darkness. The natural state of things.");
+      break;
+    case "func theme tg: light":
+      document.body.classList.add("light");
+      localStorage.setItem(LS_THEME, "light");
+      setStatus("Light theme. The demons squint, but comply.");
+      break;
+    case "func help":
+      log("--- COMMANDS (type as a line, press Enter) ---", "dim");
+      for (const c of COMMANDS) log("  " + c);
+      log("--- Save/Load buttons handle .bs and .py files ---", "dim");
+      setStatus("Help written to output. It will not save you.");
+      break;
+    default:
+      setStatus("Unknown rite: `" + cmd + "`. The compiler sneers.");
+  }
+  refreshGauges();
+}
+
+/* ----- compile & run (Pyodide: real Python in WebAssembly) ----- */
+let pyodidePromise = null;
+function getPyodide() {
+  if (!pyodidePromise) {
+    setStatus("Summoning the Python interpreter from the CDN abyss...");
+    pyodidePromise = loadPyodide().catch(err => {
+      pyodidePromise = null;
+      throw new Error("The summoning failed (offline? CDN blocked?): " + err);
+    });
+  }
+  return pyodidePromise;
+}
+
+async function compileAndRun() {
+  const python = translate(editor.value);
+  output.textContent = "";
+  log("--- translated python ---", "dim");
+  log(python || "(empty file — the void compiles cleanly)", "dim");
+  log("--- executing ---", "dim");
+  let py;
+  try { py = await getPyodide(); }
+  catch (err) { log(String(err), "strong"); setStatus("Summoning failed."); return; }
+  py.setStdout({ batched: s => log(s) });
+  py.setStderr({ batched: s => log(s, "strong") });
+  py.setStdin({ stdin: () => prompt("demand() awaits your answer:") ?? "" });
+  try {
+    await py.runPythonAsync(python);
+    log("[COMPILE OK] It ran. Somehow.", "strong");
+    setStatus("Execution survived. The gauges remember everything.");
+  } catch (err) {
+    log("[DAMNATION] " + err.message, "strong");
+    setStatus("The runtime bit back.");
+  }
+}
+
+/* ----- the per-line-commit gauntlet (same order as the terminal IDE) ----- */
+async function commitGauntlet(line) {
+  if (state.dead) return;
+
+  // Gauge 1: temperature +5; 100% burns the file.
+  state.temp = Math.min(100, state.temp + 5);
+  refreshGauges();
+  if (state.temp >= 100)
+    return die("100% TEMPERATURE", FIRE_DEATH, "The file burns.");
+
+  // Gauge 2: instability +2; roll d100 against it.
+  state.risk = Math.min(100, state.risk + 2);
+  refreshGauges();
+  if (Math.floor(Math.random() * 100) + 1 <= state.risk)
+    return die("THE DICE CAME UP DEMON", DEMON_FACE, "The instability claims your file.");
+
+  // Pillar: silently anchor one load-bearing character.
+  addPillar();
+
+  // Hazard E: dairy crimes (forbidden words, duplicate lines).
+  const allLines = editor.value.split("\n");
+  const prior = allLines.slice(0, Math.max(0, allLines.length - 2));
+  hazardDairyCheck(line, prior);
+  if (state.dead) return;
+
+  // Hazard B: misspelled keyword -> ransomware lock.
+  if (committedATypo(line)) await hazardRansomware();
+  if (state.dead) return;
+
+  // Hazard A: 1-in-15 memory demon.
+  if (Math.floor(Math.random() * 15) === 0) await hazardMemoryDemon();
+  if (state.dead) return;
+
+  // Hazard C: 1-in-20 solar flare.
+  if (Math.floor(Math.random() * 20) === 0) await hazardSolarFlare();
+}
+
+/* ----- editor input pipeline ----- */
+function currentLineInfo() {
+  const pos = editor.selectionStart;
+  const before = editor.value.slice(0, pos);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const lineEndRel = editor.value.indexOf("\n", pos);
+  const lineEnd = lineEndRel === -1 ? editor.value.length : lineEndRel;
+  return { lineStart, lineEnd, text: editor.value.slice(lineStart, lineEnd), pos };
+}
+
+editor.addEventListener("keydown", (e) => {
+  if (state.dead || state.modal) { e.preventDefault(); return; }
+
+  // Autocomplete navigation steals arrows/Enter/Tab while open.
+  if (suggestState.open) {
+    if (e.key === "ArrowDown") { e.preventDefault(); moveSuggest(1); return; }
+    if (e.key === "ArrowUp")   { e.preventDefault(); moveSuggest(-1); return; }
+    if (e.key === "Tab" || e.key === "Enter") {
+      e.preventDefault(); acceptSuggest(); return;
+    }
+    if (e.key === "Escape") { closeSuggest(); return; }
+  }
+
+  const frozen = state.temp < 10;
+  if (frozen) {
+    // [FROZEN]: block typing. The ONLY allowed input is `func coal`.
+    const { text } = currentLineInfo();
+    if (e.key.length === 1) {
+      e.preventDefault();
+      if ("func coal".startsWith(text + e.key)) {
+        insertAtCaret(e.key);
+      } else {
+        setStatus("[FROZEN] Your hands refuse. (`func coal`)");
+      }
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (text.trim() === "func coal") {
+        removeCurrentLine();
+        runCommand("func coal");
+      } else {
+        setStatus("[FROZEN] Only `func coal` thaws you.");
+      }
+      return;
+    }
+    if (e.key !== "Backspace") { e.preventDefault(); return; }
+    return; // Backspace allowed, judged by pillars like any edit
+  }
+
+  if (e.key === "Enter") {
+    const { text } = currentLineInfo();
+    const trimmed = text.trim();
+    if (trimmed.startsWith("func ") || trimmed === "func") {
+      // Commands never enter the file: eat the line, run the rite.
+      e.preventDefault();
+      removeCurrentLine();
+      runCommand(trimmed);
+      return;
+    }
+    // A real line of code: let the newline land, then run the gauntlet.
+    setTimeout(() => {
+      state.lastValue = editor.value; // commit is a sanctioned edit
+      commitGauntlet(text);
+    }, 0);
   }
 });
 
-// Init
-refreshGutter();
+function insertAtCaret(str) {
+  const s = editor.selectionStart, epos = editor.selectionEnd;
+  editor.value = editor.value.slice(0, s) + str + editor.value.slice(epos);
+  editor.selectionStart = editor.selectionEnd = s + str.length;
+  state.lastValue = editor.value;
+  refreshGutter(); autosave();
+}
+
+function removeCurrentLine() {
+  const { lineStart, lineEnd } = currentLineInfo();
+  const cut = editor.value.slice(0, lineStart) +
+              editor.value.slice(lineEnd + 1 <= editor.value.length &&
+                                 editor.value[lineEnd] === "\n" ? lineEnd + 1 : lineEnd);
+  systemSetValue(cut);
+  editor.selectionStart = editor.selectionEnd = Math.min(lineStart, cut.length);
+}
+
+/* Every user edit is judged by the pillars. No warning is given. */
+editor.addEventListener("input", () => {
+  if (state.dead) return;
+  const oldV = state.lastValue, newV = editor.value;
+  state.lastValue = newV;
+  if (judgePillars(oldV, newV)) {
+    die("STRUCTURAL FAILURE", PILLAR_DEATH,
+        "You struck a load-bearing character.");
+    return;
+  }
+  refreshGutter();
+  autosave();
+  updateSuggest();
+});
+
+// Pasting is dairy. The compiler can smell it.
+editor.addEventListener("paste", () => {
+  state.dairy += 25;
+  if (state.dairy >= 100) {
+    let name = (filenameInput.value.trim() || "inferno.bs").replace(/\.bs$/, "") + ".spoiled";
+    downloadAs(name, editor.value);
+    setTimeout(() => die("DAIRY METER: 100%", SPOILED_ART,
+        "The compiler curdles. Your work escaped as " + name + "."), 0);
+  }
+});
+
+/* ----- VS Code-style autocomplete suggestions ----- */
+const suggestState = { open: false, items: [], sel: 0, wordStart: 0, mode: "word" };
+
+const WORD_SUGGESTIONS = ALL_KEYWORDS.map(k => ({
+  label: k, kind: "keyword", insert: k,
+})).concat([
+  { label: "rite name():", kind: "snippet", insert: "rite name():" },
+  { label: "suffer x in range():", kind: "snippet", insert: "suffer x in range():" },
+  { label: "sin: / atone:", kind: "snippet", insert: "sin:" },
+]);
+
+function updateSuggest() {
+  if (state.modal || state.dead) return closeSuggest();
+  const { lineStart, text, pos } = currentLineInfo();
+  const beforeCaret = editor.value.slice(lineStart, pos);
+
+  // Command mode: the line starts with (a prefix of) `func` — suggest rites.
+  if (/^\s*f/.test(beforeCaret)) {
+    const typed = beforeCaret.trimStart();
+    const items = COMMANDS
+      .filter(c => c.startsWith(typed) && c !== typed)
+      .map(c => ({ label: c, kind: "rite", insert: c, replaceFrom: lineStart + (beforeCaret.length - typed.length) }));
+    if (items.length && typed.length >= 1) return openSuggest(items);
+  }
+
+  // Word mode: complete the token under the caret.
+  const m = beforeCaret.match(/[A-Za-z_]+$/);
+  if (!m || m[0].length < 2) return closeSuggest();
+  const prefix = m[0];
+  const items = WORD_SUGGESTIONS
+    .filter(s => s.insert.startsWith(prefix) && s.insert !== prefix)
+    .map(s => ({ ...s, replaceFrom: pos - prefix.length }));
+  if (items.length) openSuggest(items); else closeSuggest();
+}
+
+function openSuggest(items) {
+  suggestState.open = true;
+  suggestState.items = items;
+  suggestState.sel = 0;
+  renderSuggest();
+  positionSuggest();
+}
+function closeSuggest() {
+  suggestState.open = false;
+  suggestEl.classList.remove("show");
+}
+function moveSuggest(d) {
+  suggestState.sel = (suggestState.sel + d + suggestState.items.length) % suggestState.items.length;
+  renderSuggest();
+}
+function renderSuggest() {
+  suggestEl.innerHTML = "";
+  suggestState.items.forEach((it, i) => {
+    const div = document.createElement("div");
+    div.className = "item" + (i === suggestState.sel ? " sel" : "");
+    const kind = document.createElement("span");
+    kind.className = "kind"; kind.textContent = it.kind;
+    div.textContent = it.label;
+    div.appendChild(kind);
+    div.onmousedown = (e) => { e.preventDefault(); suggestState.sel = i; acceptSuggest(); };
+    suggestEl.appendChild(div);
+  });
+  suggestEl.classList.add("show");
+}
+function acceptSuggest() {
+  const it = suggestState.items[suggestState.sel];
+  if (!it) return closeSuggest();
+  const pos = editor.selectionStart;
+  // Completion replaces the typed prefix; pillars see it as one user edit,
+  // but it is pure insertion past the prefix — judged fairly by the differ.
+  editor.value = editor.value.slice(0, it.replaceFrom) + it.insert + editor.value.slice(pos);
+  const newPos = it.replaceFrom + it.insert.length;
+  editor.selectionStart = editor.selectionEnd = newPos;
+  // run pillar judgement manually since we bypassed the input event
+  const oldV = state.lastValue, newV = editor.value;
+  state.lastValue = newV;
+  if (judgePillars(oldV, newV)) {
+    die("STRUCTURAL FAILURE", PILLAR_DEATH, "You struck a load-bearing character.");
+    return;
+  }
+  refreshGutter(); autosave();
+  closeSuggest();
+  editor.focus();
+}
+
+/* Position the dropdown under the caret using a mirror div. */
+const mirror = document.createElement("div");
+mirror.style.cssText = "position:absolute;visibility:hidden;white-space:pre;" +
+  "font:13px/1.6 'SF Mono',Monaco,'Cascadia Code',Consolas,'Courier New',monospace;" +
+  "padding:0 12px;";
+document.body.appendChild(mirror);
+function positionSuggest() {
+  const pos = editor.selectionStart;
+  const before = editor.value.slice(0, pos);
+  const curLineStart = before.lastIndexOf("\n") + 1;
+  mirror.textContent = before.slice(curLineStart);
+  const x = Math.min(mirror.offsetWidth, editor.clientWidth - 230);
+  const lineNo = before.split("\n").length - 1;
+  const lineH = 13 * 1.6;
+  const y = (lineNo + 1) * lineH - editor.scrollTop;
+  suggestEl.style.left = (46 + Math.max(0, x)) + "px";
+  suggestEl.style.top = Math.max(0, y) + "px";
+}
+
+document.addEventListener("click", (e) => {
+  if (!suggestEl.contains(e.target)) closeSuggest();
+});
+
+/* ----- save / load (the only buttons, per decree) ----- */
+function downloadAs(name, content) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function saveFile() {
+  let name = filenameInput.value.trim() || "inferno.bs";
+  if (!/\.(bs|py|spoiled|txt)$/.test(name)) name += ".bs";
+  downloadAs(name, editor.value);
+  setStatus("Soul committed to disk as " + name + ". Disk is beyond the demons' reach.");
+}
+document.getElementById("loader").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  systemSetValue(await f.text());
+  state.pillars = []; // a freshly summoned file has no anchors yet
+  filenameInput.value = f.name;
+  autosave();
+  if (f.name.endsWith(".py"))
+    setStatus("Loaded " + f.name + ". Type `func brimstonify` to convert it to Brimstone.");
+  else
+    setStatus("Summoned " + f.name + " from the mortal filesystem.");
+  e.target.value = "";
+});
+
+/* ----- boot ----- */
+(function boot() {
+  if (localStorage.getItem(LS_THEME) === "light") document.body.classList.add("light");
+  const saved = localStorage.getItem(LS_KEY);
+  if (saved !== null) editor.value = saved;
+  const name = localStorage.getItem(LS_NAME);
+  if (name) filenameInput.value = name;
+  state.lastValue = editor.value;
+  refreshGutter();
+  refreshGauges();
+  editor.focus();
+})();
 </script>
 </body>
 </html>
